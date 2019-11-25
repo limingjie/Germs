@@ -3,87 +3,74 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"sync"
 	"time"
 
 	"./germ"
+	"github.com/gdamore/tcell"
 	"github.com/mattn/go-runewidth"
-	"github.com/nsf/termbox-go"
 )
 
 // ROWS - rows of the network
-const ROWS int = 10
+const ROWS int = 15
 
 // COLS - cols of the network
-const COLS int = 10
+const COLS int = 30
 
-// PrintGerms - Show germs
-func PrintGerms(germs []*germ.Germ) {
-	for {
-		var eTotal uint
-		for i, g := range germs {
-			if i != 0 && i%COLS == 0 {
-				fmt.Println()
-			}
-			g.Print()
-			eTotal += g.GetEnergy()
-		}
-		fmt.Printf("\nTotal Energy: %d\n", eTotal)
-		time.Sleep(200 * time.Millisecond)
-	}
-}
-
-func tbprint(x, y int, fg, bg termbox.Attribute, msg string) {
+func puts(src tcell.Screen, style tcell.Style, x, y int, msg string) {
 	for _, c := range msg {
-		termbox.SetCell(x, y, c, fg, bg)
+		src.SetCell(x, y, style, c)
 		x += runewidth.RuneWidth(c)
 	}
 }
 
-func fill(x, y, w, h int, cell termbox.Cell) {
+func fill(src tcell.Screen, style tcell.Style, x, y, w, h int) {
 	for ly := 0; ly < h; ly++ {
 		for lx := 0; lx < w; lx++ {
-			termbox.SetCell(x+lx, y+ly, cell.Ch, cell.Fg, cell.Bg)
+			src.SetCell(x+lx, y+ly, style)
 		}
 	}
 }
 
-var colors = []termbox.Attribute{
-	termbox.ColorWhite,
-	termbox.ColorYellow,
-	termbox.ColorGreen,
-	termbox.ColorCyan,
-	termbox.ColorBlue,
-	termbox.ColorMagenta,
-	termbox.ColorRed,
-}
-
-func getColor(e uint) termbox.Attribute {
-	e += 200
-	e /= 300
-	if e > 6 {
-		e = 6
+func calcColor(e uint) tcell.Color {
+	var r, g, b, v int32 = 0, 0, 0, int32(e)
+	if v < 100 { // yellow - turquoise
+		r = (100 - v) * 200 / 100 // 200 -   0
+		g = (100-v)*55/100 + 200  // 255 - 200
+		b = v * 255 / 100         //   0 - 255
+	} else if v < 2000 { // blue - pink
+		r = (v - 100) * 255 / 1900 //   0 - 255
+		g = 0                      //   0
+		b = 255                    // 255
+	} else if v < 4000 { // pink - red
+		r = 255                     // 255
+		g = 0                       //   0
+		b = (4000 - v) * 255 / 2000 // 255 - 0
+	} else { // red
+		r, g, b = 255, 0, 0
 	}
 
-	return colors[e]
+	return tcell.NewRGBColor(r, g, b)
 }
 
-// PrintGermsTermBox - Show germs
-func PrintGermsTermBox(germs []*germ.Germ) {
+func printGerms(src tcell.Screen, germs []*germ.Germ) {
 	for {
-		x, y := 0, 0
+		x, y := 10, 5
 		for i, g := range germs {
-			bg := getColor(g.GetEnergy())
-			fill(x, y, 4, 2, termbox.Cell{Bg: bg})
-			tbprint(x, y, termbox.ColorBlack, bg, fmt.Sprintf("%4d", g.GetEnergy()))
-			tbprint(x+1, y+1, termbox.ColorYellow, bg, fmt.Sprintf("%2d", g.GetCycle()/1000000))
+			style := tcell.StyleDefault.
+				Foreground(tcell.ColorWhite).
+				Background(calcColor(g.GetEnergy()))
+			fill(src, style, x, y, 4, 2)
+			puts(src, style, x, y, fmt.Sprintf("%4d", g.GetEnergy()))
+			puts(src, style, x+1, y+1, fmt.Sprintf("%2d", g.GetCycle()/1000000))
 			x += 4
 			if (i+1)%COLS == 0 {
-				x = 0
+				x = 10
 				y += 2
 			}
 		}
-		termbox.Flush()
+		src.Show()
 		time.Sleep(50 * time.Millisecond)
 	}
 }
@@ -136,44 +123,45 @@ func main() {
 		go germ.Run(&wg, &stopSignal)
 	}
 
-	// Display germs
-	// go PrintGerms(germs)
-
-	// Init termbox
-	err := termbox.Init()
+	// Init screen
+	src, err := tcell.NewScreen()
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
 	}
 
-	// Termbox Event Queue
-	eventQueue := make(chan termbox.Event)
-	go func() {
-		for {
-			eventQueue <- termbox.PollEvent()
-		}
-	}()
+	if err = src.Init(); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
+
+	src.SetStyle(tcell.StyleDefault.
+		Foreground(tcell.ColorWhite).
+		Background(tcell.ColorBlack))
+	src.Clear()
 
 	// Termbox redrew
-	go PrintGermsTermBox(germs)
+	go printGerms(src, germs)
 
 loop:
 	for {
-		switch ev := termbox.PollEvent(); ev.Type {
-		case termbox.EventKey:
-			switch ev.Key {
-			case termbox.KeyEsc:
+		ev := src.PollEvent()
+		switch ev := ev.(type) {
+		case *tcell.EventKey:
+			switch ev.Key() {
+			case tcell.KeyEscape, tcell.KeyEnter:
 				break loop
 			default:
-				if ev.Ch == 'q' || ev.Ch == 'Q' {
+				if ev.Rune() == 'q' || ev.Rune() == 'Q' {
 					break loop
 				}
 			}
-		case termbox.EventError:
-			panic(ev.Err)
+		case *tcell.EventResize:
+			src.Sync()
 		}
 	}
 
-	termbox.Close()
+	src.Fini()
 
 	stopSignal = true
 	wg.Wait()

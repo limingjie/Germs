@@ -61,7 +61,7 @@ func (g *Germ) Run(wg *sync.WaitGroup, stopSignal *bool) {
 			}
 		}
 		if *stopSignal {
-			fmt.Printf("Germ %d quit.\n", g.id)
+			// fmt.Printf("Germ %d quit.\n", g.id)
 			return
 		}
 	}
