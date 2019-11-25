@@ -18,17 +18,17 @@ const ROWS int = 15
 // COLS - cols of the network
 const COLS int = 30
 
-func puts(src tcell.Screen, style tcell.Style, x, y int, msg string) {
+func puts(s tcell.Screen, style tcell.Style, x, y int, msg string) {
 	for _, c := range msg {
-		src.SetCell(x, y, style, c)
+		s.SetCell(x, y, style, c)
 		x += runewidth.RuneWidth(c)
 	}
 }
 
-func fill(src tcell.Screen, style tcell.Style, x, y, w, h int) {
+func fill(s tcell.Screen, style tcell.Style, x, y, w, h int) {
 	for ly := 0; ly < h; ly++ {
 		for lx := 0; lx < w; lx++ {
-			src.SetCell(x+lx, y+ly, style)
+			s.SetCell(x+lx, y+ly, style)
 		}
 	}
 }
@@ -54,24 +54,24 @@ func calcColor(e uint) tcell.Color {
 	return tcell.NewRGBColor(r, g, b)
 }
 
-func printGerms(src tcell.Screen, germs []*germ.Germ) {
+func printGerms(s tcell.Screen, germs []*germ.Germ) {
 	for {
 		x, y := 10, 5
 		for i, g := range germs {
 			style := tcell.StyleDefault.
 				Foreground(tcell.ColorWhite).
 				Background(calcColor(g.GetEnergy()))
-			fill(src, style, x, y, 4, 2)
-			puts(src, style, x, y, fmt.Sprintf("%4d", g.GetEnergy()))
-			puts(src, style, x+1, y+1, fmt.Sprintf("%2d", g.GetCycle()/1000000))
+			fill(s, style, x, y, 4, 2)
+			puts(s, style, x, y, fmt.Sprintf("%4d", g.GetEnergy()))
+			puts(s, style, x+1, y+1, fmt.Sprintf("%2d", g.GetCycle()/1000000))
 			x += 4
 			if (i+1)%COLS == 0 {
 				x = 10
 				y += 2
 			}
 		}
-		src.Show()
-		time.Sleep(50 * time.Millisecond)
+		s.Show()
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -124,28 +124,28 @@ func main() {
 	}
 
 	// Init screen
-	src, err := tcell.NewScreen()
+	s, err := tcell.NewScreen()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 
-	if err = src.Init(); err != nil {
+	if err = s.Init(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 
-	src.SetStyle(tcell.StyleDefault.
+	s.SetStyle(tcell.StyleDefault.
 		Foreground(tcell.ColorWhite).
 		Background(tcell.ColorBlack))
-	src.Clear()
+	s.Clear()
 
 	// Termbox redrew
-	go printGerms(src, germs)
+	go printGerms(s, germs)
 
 loop:
 	for {
-		ev := src.PollEvent()
+		ev := s.PollEvent()
 		switch ev := ev.(type) {
 		case *tcell.EventKey:
 			switch ev.Key() {
@@ -157,11 +157,11 @@ loop:
 				}
 			}
 		case *tcell.EventResize:
-			src.Sync()
+			s.Sync()
 		}
 	}
 
-	src.Fini()
+	s.Fini()
 
 	stopSignal = true
 	wg.Wait()
