@@ -9,7 +9,7 @@ import (
 
 	"main/germ"
 
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -17,7 +17,7 @@ import (
 const ROWS int = 10
 
 // COLS - cols of the network
-const COLS int = 10
+const COLS int = 20
 
 func puts(s tcell.Screen, style tcell.Style, x, y int, msg string) {
 	for _, c := range msg {
@@ -57,7 +57,7 @@ func calcColor(e uint) tcell.Color {
 
 func printGerms(s tcell.Screen, germs []*germ.Germ) {
 	for {
-		x, y := 10, 5
+		x, y := 6, 3
 		for i, g := range germs {
 			style := tcell.StyleDefault.
 				Foreground(tcell.ColorWhite).
@@ -67,10 +67,17 @@ func printGerms(s tcell.Screen, germs []*germ.Germ) {
 			puts(s, style, x+1, y+1, fmt.Sprintf("%2d", g.GetCycle()/1000000))
 			x += 4
 			if (i+1)%COLS == 0 {
-				x = 10
+				x = 6
 				y += 2
 			}
 		}
+
+		totalEnergy := uint(0)
+		for _, g := range germs {
+			totalEnergy += g.GetEnergy()
+		}
+		puts(s, tcell.StyleDefault, 2, 1, fmt.Sprintf("Total Energy: %d", totalEnergy))
+
 		s.Show()
 		time.Sleep(10 * time.Millisecond)
 	}
