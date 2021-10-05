@@ -7,16 +7,17 @@ import (
 	"sync"
 	"time"
 
-	"./germ"
+	"main/germ"
+
 	"github.com/gdamore/tcell"
 	"github.com/mattn/go-runewidth"
 )
 
 // ROWS - rows of the network
-const ROWS int = 15
+const ROWS int = 10
 
 // COLS - cols of the network
-const COLS int = 30
+const COLS int = 10
 
 func puts(s tcell.Screen, style tcell.Style, x, y int, msg string) {
 	for _, c := range msg {

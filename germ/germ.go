@@ -50,7 +50,7 @@ func (g *Germ) Emit() {
 func (g *Germ) Run(wg *sync.WaitGroup, stopSignal *bool) {
 	defer wg.Done()
 
-	heartbeat := time.Tick(g.cycle)
+	heartbeat := time.NewTicker(g.cycle).C
 	for {
 		select {
 		case e := <-g.input:
